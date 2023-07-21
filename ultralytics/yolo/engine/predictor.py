@@ -155,25 +155,40 @@ class BasePredictor:
         self.imgsz = imgsz
         self.done_setup = True
         self.device = device
-
         return model
 
+    def make_txt(self, path):
+        race = path.split("/")[-2]
+        init_text = race+"_traking.txt"
+        f = open(f'/workspace/prj-medix/naru_src/deepsort/{init_text}', 'w')
+        f.close()
+        
+        return init_text
     @smart_inference_mode()
     def __call__(self, source=None, model=None):
         self.run_callbacks("on_predict_start")
+
+        
+        
         model = self.model if self.done_setup else self.setup(source, model)
         model.eval()
         self.seen, self.windows, self.dt = 0, [], (ops.Profile(), ops.Profile(), ops.Profile())
         self.all_outputs = []
-        for batch in self.dataset:
+        
+        
+        for index,batch in enumerate(self.dataset):
             self.run_callbacks("on_predict_batch_start")
             path, im, im0s, vid_cap, s = batch
+            
+            if index==0:
+                init_text = self.make_txt(path)
+                #print(index)
+                
             visualize = increment_path(self.save_dir / Path(path).stem, mkdir=True) if self.args.visualize else False
             with self.dt[0]:
                 im = self.preprocess(im)
                 if len(im.shape) == 3:
                     im = im[None]  # expand for batch dim
-
             # Inference
             with self.dt[1]:
                 preds = model(im, augment=self.args.augment, visualize=visualize)
@@ -186,7 +201,7 @@ class BasePredictor:
                 if self.webcam:
                     path, im0s = path[i], im0s[i]
                 p = Path(path)
-                s += self.write_results(i, preds, (p, im, im0s))
+                s += self.write_results(init_text, index, i, preds, (p, im, im0s))
 
                 if self.args.show:
                     self.show(p)
@@ -195,15 +210,16 @@ class BasePredictor:
                     self.save_preds(vid_cap, i, str(self.save_dir / p.name))
 
             # Print time (inference-only)
-            LOGGER.info(f"{s}{'' if len(preds) else '(no detections), '}{self.dt[1].dt * 1E3:.1f}ms")
+            if index % 200 ==0:
+                LOGGER.info(f"{s}{'' if len(preds) else '(no detections), '}{self.dt[1].dt * 1E3:.1f}ms")
 
             self.run_callbacks("on_predict_batch_end")
 
         # Print results
         t = tuple(x.t / self.seen * 1E3 for x in self.dt)  # speeds per image
-        LOGGER.info(
-            f'Speed: %.1fms pre-process, %.1fms inference, %.1fms postprocess per image at shape {(1, 3, *self.imgsz)}'
-            % t)
+
+        # LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms postprocess per image at shape {(1, 3, *self.imgsz)}'% t)
+            
         if self.args.save_txt or self.args.save:
             s = f"\n{len(list(self.save_dir.glob('labels/*.txt')))} labels saved to {self.save_dir / 'labels'}" if self.args.save_txt else ''
             LOGGER.info(f"Results saved to {colorstr('bold', self.save_dir)}{s}")
