@@ -150,3 +150,4 @@ wandb/
 *_openvino_model/
 
 runs/
+ultralytics/yolo/v8/detect/predict_.py
