@@ -5,6 +5,8 @@ import torch
 import argparse
 import time
 from pathlib import Path
+import argparse
+
 
 import cv2
 import torch
@@ -25,10 +27,15 @@ data_deque = {}
 
 deepsort = None
 
+object_counter = {}
+
+object_counter1 = {}
+
+line = [(100, 500), (1050, 500)]
 def init_tracker():
     global deepsort
     cfg_deep = get_config()
-    cfg_deep.merge_from_file("deep_sort_pytorch/configs/deep_sort.yaml")
+    cfg_deep.merge_from_file("/workspace/prj-medix/naru_src/deepsort/YOLOv8-DeepSORT-Object-Tracking/deep_sort_pytorch/configs/deep_sort.yaml")
 
     deepsort= DeepSort(cfg_deep.DEEPSORT.REID_CKPT,
                             max_dist=cfg_deep.DEEPSORT.MAX_DIST, min_confidence=cfg_deep.DEEPSORT.MIN_CONFIDENCE,
@@ -80,36 +87,47 @@ def draw_border(img, pt1, pt2, color, thickness, r, d):
     x1,y1 = pt1
     x2,y2 = pt2
     # Top left
-    cv2.line(img, (x1 + r, y1), (x1 + r + d, y1), color, thickness)
-    cv2.line(img, (x1, y1 + r), (x1, y1 + r + d), color, thickness)
-    cv2.ellipse(img, (x1 + r, y1 + r), (r, r), 180, 0, 90, color, thickness)
+    # cv2.line(img, (x1 + r, y1), (x1 + r + d, y1), color, thickness)
+    # cv2.line(img, (x1, y1 + r), (x1, y1 + r + d), color, thickness)
+    #cv2.ellipse(img, (x1 + r, y1 + r), (r, r), 180, 0, 90, color, thickness)
     # Top right
-    cv2.line(img, (x2 - r, y1), (x2 - r - d, y1), color, thickness)
-    cv2.line(img, (x2, y1 + r), (x2, y1 + r + d), color, thickness)
-    cv2.ellipse(img, (x2 - r, y1 + r), (r, r), 270, 0, 90, color, thickness)
+    # cv2.line(img, (x2 - r, y1), (x2 - r - d, y1), color, thickness)
+    # cv2.line(img, (x2, y1 + r), (x2, y1 + r + d), color, thickness)
+    # cv2.ellipse(img, (x2 - r, y1 + r), (r, r), 270, 0, 90, color, thickness)
     # Bottom left
-    cv2.line(img, (x1 + r, y2), (x1 + r + d, y2), color, thickness)
-    cv2.line(img, (x1, y2 - r), (x1, y2 - r - d), color, thickness)
-    cv2.ellipse(img, (x1 + r, y2 - r), (r, r), 90, 0, 90, color, thickness)
+    # cv2.line(img, (x1 + r, y2), (x1 + r + d, y2), color, thickness)
+    # cv2.line(img, (x1, y2 - r), (x1, y2 - r - d), color, thickness)
+    #cv2.ellipse(img, (x1 + r, y2 - r), (r, r), 90, 0, 90, color, thickness)
     # Bottom right
-    cv2.line(img, (x2 - r, y2), (x2 - r - d, y2), color, thickness)
-    cv2.line(img, (x2, y2 - r), (x2, y2 - r - d), color, thickness)
-    cv2.ellipse(img, (x2 - r, y2 - r), (r, r), 0, 0, 90, color, thickness)
+    # cv2.line(img, (x2 - r, y2), (x2 - r - d, y2), color, thickness)
+    # cv2.line(img, (x2, y2 - r), (x2, y2 - r - d), color, thickness)
+    #cv2.ellipse(img, (x2 - r, y2 - r), (r, r), 0, 0, 90, color, thickness)
 
-    cv2.rectangle(img, (x1 + r, y1), (x2 - r, y2), color, -1, cv2.LINE_AA)
-    cv2.rectangle(img, (x1, y1 + r), (x2, y2 - r - d), color, -1, cv2.LINE_AA)
+#     cv2.rectangle(img, (x1 + r, y1), (x2 - r, y2), color, -1, cv2.LINE_AA)
+#     cv2.rectangle(img, (x1, y1 + r), (x2, y2 - r - d), color, -1, cv2.LINE_AA)
     
-    cv2.circle(img, (x1 +r, y1+r), 2, color, 12)
-    cv2.circle(img, (x2 -r, y1+r), 2, color, 12)
-    cv2.circle(img, (x1 +r, y2-r), 2, color, 12)
-    cv2.circle(img, (x2 -r, y2-r), 2, color, 12)
+#     cv2.circle(img, (x1 +r, y1+r), 2, color, 12)
+#     cv2.circle(img, (x2 -r, y1+r), 2, color, 12)
+#     cv2.circle(img, (x1 +r, y2-r), 2, color, 12)
+#     cv2.circle(img, (x2 -r, y2-r), 2, color, 12)
     
     return img
 
-def UI_box(x, img, color=None, label=None, line_thickness=None):
+def convert_bbox_format(x1, y1, x2, y2):
+    x = x1
+    y = y1
+    width = x2 - x1
+    height =y2 - y1
+    return x, y, width, height
+
+def append_to_file(filename, lines):
+    with open(filename, 'a') as file:
+        for line in lines:
+            file.write(line + '\n')
+
+def UI_box(init_text,frame_name, x, img, color=None, label=None, line_thickness=None):
     # Plots one bounding box on image img
     tl = line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1  # line/font thickness
-    color = color or [random.randint(0, 255) for _ in range(3)]
     c1, c2 = (int(x[0]), int(x[1])), (int(x[2]), int(x[3]))
     cv2.rectangle(img, c1, c2, color, thickness=tl, lineType=cv2.LINE_AA)
     if label:
@@ -117,21 +135,98 @@ def UI_box(x, img, color=None, label=None, line_thickness=None):
         t_size = cv2.getTextSize(label, 0, fontScale=tl / 3, thickness=tf)[0]
 
         img = draw_border(img, (c1[0], c1[1] - t_size[1] -3), (c1[0] + t_size[0], c1[1]+3), color, 1, 8, 2)
+        x1,y1=c1
+        x2,y2=c2
 
-        cv2.putText(img, label, (c1[0], c1[1] - 2), 0, tl / 3, [225, 255, 255], thickness=tf, lineType=cv2.LINE_AA)
+        cv2.putText(img, label, (c1[0], c1[1] - 2), 0, tl / 3, color, thickness=2)
+        
+        x, y, width, height = convert_bbox_format(x1, y1, x2, y2)
+        # print(frame_name, label, x, y, width, height)
+        append_to_file("/workspace/prj-medix/naru_src/deepsort/"+init_text, [str(frame_name) + "," + str(label) + "," + str(x) + "," + str(y) + "," + str(width) + "," + str(height)])
+        
+    return img
+
+def intersect(A,B,C,D):
+    return ccw(A,C,D) != ccw(B,C,D) and ccw(A,B,C) != ccw(A,B,D)
+
+def ccw(A,B,C):
+    return (C[1]-A[1]) * (B[0]-A[0]) > (B[1]-A[1]) * (C[0]-A[0])
 
 
+def get_direction(point1, point2):
+    direction_str = ""
 
-def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
-    #cv2.line(img, line[0], line[1], (46,162,112), 3)
+    # calculate y axis direction
+    if point1[1] > point2[1]:
+        direction_str += "South"
+    elif point1[1] < point2[1]:
+        direction_str += "North"
+    else:
+        direction_str += ""
+
+    # calculate x axis direction
+    if point1[0] > point2[0]:
+        direction_str += "East"
+    elif point1[0] < point2[0]:
+        direction_str += "West"
+    else:
+        direction_str += ""
+
+    return direction_str
+    
+def draw_boxes(init_text, frame_no, img, bbox, names,object_id, identities=None, offset=(0, 0)):
+    # (im0, bbox_xyxy, self.model.names, object_id,identities)
+    color_map = [
+    (255, 0, 0),        # Red
+    (0, 255, 0),        # Green
+    (0, 0, 255),        # Blue
+    (255, 255, 0),      # Yellow
+    (255, 0, 255),      # Magenta
+    (0, 255, 255),      # Cyan
+    (255, 128, 0),      # Orange
+    (128, 0, 255),      # Purple
+    (0, 255, 128),      # Lime
+    (255, 0, 128),      # Pink
+    (128, 255, 0),      # Chartreuse
+    (0, 128, 255),      # Sky Blue
+    (255, 255, 128),    # Light Yellow
+    (255, 128, 255),    # Light Magenta
+    (128, 255, 255),    # Light Cyan
+    (255, 128, 128),    # Light Red
+    (128, 128, 255),    # Light Blue
+    (128, 255, 128),    # Light Green
+    (192, 192, 192),    # Silver
+    (255, 165, 0),      # Orange
+    (255, 255, 255),    # White
+    (0, 0, 128),        # Navy
+    (0, 128, 0),        # Green
+    (128, 0, 0),        # Maroon
+    (255, 255, 224),    # Light Yellow
+    (255, 255, 192),    # Light Beige
+    (0, 255, 128),      # Spring Green
+    (0, 128, 128),      # Teal
+    (128, 128, 0),      # Olive
+    (192, 0, 128),       # Dark Raspberry
+    (0, 0, 64),        
+    (0, 64, 0),        
+    (64, 0, 0),        
+    (0, 0, 32),        
+    (0, 32, 0),       
+    (32, 0, 0),      
+    
+    ]
+        
+    # cv2.line(img, line[0], line[1], (46,162,112), 3)
 
     height, width, _ = img.shape
     # remove tracked point from buffer if object is lost
     for key in list(data_deque):
-      if key not in identities:
-        data_deque.pop(key)
+        if key not in identities:
+            data_deque.pop(key)
 
+    c=0
     for i, box in enumerate(bbox):
+        # i =  1image bbox counts
         x1, y1, x2, y2 = [int(i) for i in box]
         x1 += offset[0]
         x2 += offset[0]
@@ -146,23 +241,64 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
 
         # create new buffer for new object
         if id not in data_deque:  
-          data_deque[id] = deque(maxlen= 64)
-        color = compute_color_for_labels(object_id[i])
+            data_deque[id] = deque(maxlen= 64)
+        #color = compute_color_for_labels(object_id[i])
+    
+        color = color_map[i]
+        
+        
         obj_name = names[object_id[i]]
-        label = '{}{:d}'.format("", id) + ":"+ '%s' % (obj_name)
+        label = f"{id}"
+        
 
-        # add center to buffer
-        data_deque[id].appendleft(center)
-        UI_box(box, img, label=label, color=color, line_thickness=2)
-        # draw trail
-        for i in range(1, len(data_deque[id])):
-            # check if on buffer value is none
-            if data_deque[id][i - 1] is None or data_deque[id][i] is None:
-                continue
-            # generate dynamic thickness of trails
-            thickness = int(np.sqrt(64 / float(i + i)) * 1.5)
-            # draw trails
-            cv2.line(img, data_deque[id][i - 1], data_deque[id][i], color, thickness)
+    #     # add center to buffer
+    #     data_deque[id].appendleft(center)
+    #     if len(data_deque[id]) >= 2:
+    #       direction = get_direction(data_deque[id][0], data_deque[id][1])
+    #       if intersect(data_deque[id][0], data_deque[id][1], line[0], line[1]):
+    #           cv2.line(img, line[0], line[1], (255, 255, 255), 3)
+    #           if "South" in direction:
+    #             if obj_name not in object_counter:
+    #                 object_counter[obj_name] = 1
+    #             else:
+    #                 object_counter[obj_name] += 1
+    #           if "North" in direction:
+    #             if obj_name not in object_counter1:
+    #                 object_counter1[obj_name] = 1
+    #             else:
+    #                 object_counter1[obj_name] += 1
+    
+        img = UI_box(init_text, frame_no, box, img, label=label, color=color, line_thickness=2)
+        
+        if i==len(bbox)-1:
+            now_info = f"frame : {frame_no} num : {len(bbox)}"
+            cv2.putText(img, now_info, (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),2)
+        
+        # 重心のフロー
+        # for i in range(1, len(data_deque[id])):
+        #     # check if on buffer value is none
+        #     if data_deque[id][i - 1] is None or data_deque[id][i] is None:
+        #         continue
+        #     # generate dynamic thickness of trails
+        #     thickness = int(np.sqrt(64 / float(i + i)) * 1.5)
+        #     # draw trails
+        #     cv2.line(img, data_deque[id][i - 1], data_deque[id][i], color, thickness)
+    
+    # #4. Display Count in top right corner
+    #     for idx, (key, value) in enumerate(object_counter1.items()):
+    #         cnt_str = str(key) + ":" +str(value)
+    #         cv2.line(img, (width - 500,25), (width,25), [85,45,255], 40)
+    #         cv2.putText(img, f'Number of Vehicles Entering', (width - 500, 35), 0, 1, [225, 255, 255], thickness=2, lineType=cv2.LINE_AA)
+    #         cv2.line(img, (width - 150, 65 + (idx*40)), (width, 65 + (idx*40)), [85, 45, 255], 30)
+    #         cv2.putText(img, cnt_str, (width - 150, 75 + (idx*40)), 0, 1, [255, 255, 255], thickness = 2, lineType = cv2.LINE_AA)
+
+    #     for idx, (key, value) in enumerate(object_counter.items()):
+    #         cnt_str1 = str(key) + ":" +str(value)
+    #         cv2.line(img, (20,25), (500,25), [85,45,255], 40)
+    #         cv2.putText(img, f'Numbers of Vehicles Leaving', (11, 35), 0, 1, [225, 255, 255], thickness=2, lineType=cv2.LINE_AA)    
+    #         cv2.line(img, (20,65+ (idx*40)), (127,65+ (idx*40)), [85,45,255], 30)
+    #         cv2.putText(img, cnt_str1, (11, 75+ (idx*40)), 0, 1, [225, 255, 255], thickness=2, lineType=cv2.LINE_AA)
+    
     return img
 
 
@@ -190,7 +326,7 @@ class DetectionPredictor(BasePredictor):
 
         return preds
 
-    def write_results(self, idx, preds, batch):
+    def write_results(self, init_text, frame_no, idx, preds, batch):
         p, im, im0 = batch
         all_outputs = []
         log_string = ""
@@ -205,11 +341,12 @@ class DetectionPredictor(BasePredictor):
             frame = getattr(self.dataset, 'frame', 0)
 
         self.data_path = p
+
         save_path = str(self.save_dir / p.name)  # im.jpg
         self.txt_path = str(self.save_dir / 'labels' / p.stem) + ('' if self.dataset.mode == 'image' else f'_{frame}')
         log_string += '%gx%g ' % im.shape[2:]  # print string
         self.annotator = self.get_annotator(im0)
-
+        
         det = preds[idx]
         all_outputs.append(det)
         if len(det) == 0:
@@ -237,8 +374,7 @@ class DetectionPredictor(BasePredictor):
             bbox_xyxy = outputs[:, :4]
             identities = outputs[:, -2]
             object_id = outputs[:, -1]
-            
-            draw_boxes(im0, bbox_xyxy, self.model.names, object_id,identities)
+            draw_boxes(init_text, frame_no, im0, bbox_xyxy, self.model.names, object_id,identities)
 
         return log_string
 

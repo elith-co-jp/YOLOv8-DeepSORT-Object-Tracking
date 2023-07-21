@@ -14,7 +14,7 @@ imgsz: 640 # size of input images
 save: True # save checkpoints
 cache: False # True/ram, disk or False. Use cache for data loading
 device: null # cuda device, i.e. 0 or 0,1,2,3 or cpu. Device to run on
-workers: 8 # number of worker threads for data loading
+workers: 0 # number of worker threads for data loading
 project: null # project name
 name: null # experiment name
 exist_ok: False # whether to overwrite existing experiment
