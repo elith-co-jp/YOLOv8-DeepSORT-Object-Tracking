@@ -151,3 +151,6 @@ wandb/
  
 # add yolov8deepsort
 YOLOv8-DeepSORT-Object-Tracking/
+*.txt
+deep_sort_mp4/
+deeptext/
